@@ -1,5 +1,6 @@
 import hashlib
 import re
+import time
 from datetime import datetime
 
 from infi.clickhouse_orm import Database
@@ -35,6 +36,7 @@ def consume():
         if len(profiles) == 1000:
             db.insert(profiles)
             print("data bulk profile" + str(len(profiles)))
+            time.sleep(2)
             profiles.clear()
 
         if raw_data.get('data'):
@@ -49,14 +51,17 @@ def consume():
                     if len(rekaps) == 1000:
                         db.insert(rekaps)
                         print("data bulk rekap" + str(len(rekaps)))
+                        time.sleep(2)
                         rekaps.clear()
     if rekaps:
         db.insert(rekaps)
         print("data bulk rekap" + str(len(rekaps)))
+        time.sleep(2)
         rekaps.clear()
     if profiles:
         db.insert(profiles)
         print("data bulk profile" + str(len(profiles)))
+        time.sleep(2)
         profiles.clear()
 
 
@@ -148,7 +153,7 @@ def parser(raw: dict) -> dict:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').replace('Prov. ', '').upper()
                         else:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').upper()
-                        clean_profile['idx'] = generate_partition_key(kontak_utama.get('Provinsi'))
+                        clean_profile['idx'] = generate_partition_key(f'{kontak_utama.get("Provinsi")}_{kontak_utama.get("Kabupaten")}')
                     if kontak_utama.get('Kode Pos'):
                         clean_profile['kode_pos'] = kontak_utama.get('Kode Pos')
                     if kontak_utama.get('Lintang') and kontak_utama.get('Lintang') != '0':
