@@ -33,7 +33,7 @@ def consume():
         profile = parser(raw_data)
         data_profile = Profile(**profile)
         profiles.append(data_profile)
-        if len(profiles) == 1000:
+        if len(profiles) == 100:
             db.insert(profiles)
             print("data bulk profile" + str(len(profiles)))
             time.sleep(2)
@@ -48,7 +48,7 @@ def consume():
                     clean_rekap['nama'] = data.get('nama')
                     data_rekap = Rekap(**clean_rekap)
                     rekaps.append(data_rekap)
-                    if len(rekaps) == 1000:
+                    if len(rekaps) == 100:
                         db.insert(rekaps)
                         print("data bulk rekap" + str(len(rekaps)))
                         time.sleep(2)
