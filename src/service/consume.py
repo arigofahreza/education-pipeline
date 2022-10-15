@@ -26,7 +26,7 @@ def consume():
                            "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
         auto_offset_reset='earliest',
         enable_auto_commit=True,
-        group_id='pendidikan-parser-0.0.1',
+        group_id='pendidikan-parser-0.0.2',
         value_deserializer=lambda x: json.loads(x.decode('utf-8')))
     for data in consumer:
         raw_data = data.value
@@ -46,6 +46,7 @@ def consume():
                     clean_rekap = rekap(rekapitulasi)
                     clean_rekap['sekolah_id'] = data.get('sekolah_id')
                     clean_rekap['nama'] = data.get('nama')
+                    clean_rekap['idx'] = generate_partition_key(f'{data.get("induk_provinsi")}_{data.get("induk_kabupaten")}')
                     data_rekap = Rekap(**clean_rekap)
                     rekaps.append(data_rekap)
                     if len(rekaps) == 100:
@@ -207,7 +208,6 @@ def rekap(raw: dict) -> dict:
 
     if raw.get('semester_id'):
         clean_rekap['semester_id'] = raw.get('semester_id')
-        clean_rekap['idx'] = generate_partition_key(raw.get('semester_id'))
     if raw.get('semester_name'):
         clean_rekap['semester_name'] = raw.get('semester_name')
     if raw.get('Data PTK dan PD'):
