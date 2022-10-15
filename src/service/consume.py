@@ -25,7 +25,7 @@ def consume():
                            "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
         auto_offset_reset='earliest',
         enable_auto_commit=True,
-        group_id='test-0.0.1',
+        group_id='pendidikan-parser-0.0.1',
         value_deserializer=lambda x: json.loads(x.decode('utf-8')))
     for data in consumer:
         raw_data = data.value
