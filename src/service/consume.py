@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import insert
 from infi.clickhouse_orm import Database
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, TopicPartition
 import json
 
 from src.config.clickhouse import CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USERNAME, \
@@ -66,13 +66,12 @@ def consume():
         profiles.clear()
 
 
-def postgre():
+def postgre(partition: int):
     db = Database(CLICKHOUSE_DB, db_url=f'http://{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}', username=CLICKHOUSE_USERNAME,
                   password=CLICKHOUSE_PASSWORD)
     db.create_table(Profile)
     db.create_table(Rekap)
     consumer = KafkaConsumer(
-        'sc-raw-politic-geostrategic-general-001',
         bootstrap_servers=["kafka01.production02.bt:9092", "kafka02.production02.bt:9092",
                            "kafka03.production02.bt:9092", "kafka04.production02.bt:9092",
                            "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
@@ -80,6 +79,7 @@ def postgre():
         enable_auto_commit=True,
         group_id='pendidikan-parser-0.0.3',
         value_deserializer=lambda x: json.loads(x.decode('utf-8')))
+    consumer.assign([TopicPartition('sc-raw-politic-geostrategic-general-001', partition)])
     for data in consumer:
         raw_data = data.value
         profile = parser(raw_data)
