@@ -2,14 +2,14 @@ import hashlib
 import re
 import time
 from datetime import datetime
-
+from sqlalchemy.dialects.postgresql import insert
 from infi.clickhouse_orm import Database
 from kafka import KafkaConsumer
 import json
 
 from src.config.clickhouse import CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USERNAME, \
     CLICKHOUSE_PASSWORD
-from src.model.table import Profile, Rekap
+from src.model.table import Profile, Rekap, ProfilePostgre, session, RekapPostgre
 
 
 def consume():
@@ -36,7 +36,7 @@ def consume():
         if len(profiles) == 100:
             db.insert(profiles)
             print("data bulk profile" + str(len(profiles)))
-            time.sleep(2)
+            time.sleep(10)
             profiles.clear()
 
         if raw_data.get('data'):
@@ -46,24 +46,61 @@ def consume():
                     clean_rekap = rekap(rekapitulasi)
                     clean_rekap['sekolah_id'] = data.get('sekolah_id')
                     clean_rekap['nama'] = data.get('nama')
-                    clean_rekap['idx'] = generate_partition_key(f'{data.get("induk_provinsi")}_{data.get("induk_kabupaten")}')
+                    clean_rekap['idx'] = 1
                     data_rekap = Rekap(**clean_rekap)
                     rekaps.append(data_rekap)
                     if len(rekaps) == 100:
                         db.insert(rekaps)
                         print("data bulk rekap" + str(len(rekaps)))
-                        time.sleep(2)
+                        time.sleep(10)
                         rekaps.clear()
     if rekaps:
         db.insert(rekaps)
         print("data bulk rekap" + str(len(rekaps)))
-        time.sleep(2)
+        time.sleep(5)
         rekaps.clear()
     if profiles:
         db.insert(profiles)
         print("data bulk profile" + str(len(profiles)))
-        time.sleep(2)
+        time.sleep(5)
         profiles.clear()
+
+
+def postgre():
+    db = Database(CLICKHOUSE_DB, db_url=f'http://{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}', username=CLICKHOUSE_USERNAME,
+                  password=CLICKHOUSE_PASSWORD)
+    db.create_table(Profile)
+    db.create_table(Rekap)
+    consumer = KafkaConsumer(
+        'sc-raw-politic-geostrategic-general-001',
+        bootstrap_servers=["kafka01.production02.bt:9092", "kafka02.production02.bt:9092",
+                           "kafka03.production02.bt:9092", "kafka04.production02.bt:9092",
+                           "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
+        auto_offset_reset='earliest',
+        enable_auto_commit=True,
+        group_id='pendidikan-parser-0.0.3',
+        value_deserializer=lambda x: json.loads(x.decode('utf-8')))
+    for data in consumer:
+        raw_data = data.value
+        profile = parser(raw_data)
+        del profile['idx']
+        query = insert(ProfilePostgre).values([profile])
+        do_nothing = query.on_conflict_do_nothing(index_elements=["id"])
+        session.execute(do_nothing)
+        session.commit()
+        print(f'inserted {profile["id"]}')
+        if raw_data.get('data'):
+            data = raw_data.get('data')
+            if data.get('Rekapitulasi'):
+                for rekapitulasi in data.get('Rekapitulasi'):
+                    clean_rekap = rekap(rekapitulasi)
+                    clean_rekap['sekolah_id'] = data.get('sekolah_id')
+                    clean_rekap['nama'] = data.get('nama')
+                    query = insert(RekapPostgre).values([clean_rekap])
+                    do_nothing = query.on_conflict_do_nothing(index_elements=["id"])
+                    session.execute(do_nothing)
+                    session.commit()
+                    print(f'inserted {clean_rekap["id"]}')
 
 
 def parser(raw: dict) -> dict:
@@ -154,7 +191,7 @@ def parser(raw: dict) -> dict:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').replace('Prov. ', '').upper()
                         else:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').upper()
-                        clean_profile['idx'] = generate_partition_key(f'{kontak_utama.get("Provinsi")}_{kontak_utama.get("Kabupaten")}')
+                        clean_profile['idx'] = 1
                     if kontak_utama.get('Kode Pos'):
                         clean_profile['kode_pos'] = kontak_utama.get('Kode Pos')
                     if kontak_utama.get('Lintang') and kontak_utama.get('Lintang') != '0':

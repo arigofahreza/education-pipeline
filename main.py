@@ -1,6 +1,7 @@
-from src.service.consume import consume
+from src.service.consume import consume, postgre
 
 if __name__ == '__main__':
-    consume()
+    postgre()
+    # consume()
 
 

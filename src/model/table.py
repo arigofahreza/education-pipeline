@@ -1,5 +1,11 @@
 from infi.clickhouse_orm import UInt64Field, DateTimeField, LowCardinalityField, StringField, Model, UInt8Field, \
     ArrayField, MergeTree, Float32Field, NullableField, DateField, Distributed, UInt32Field, Float64Field
+from sqlalchemy.ext.declarative import declarative_base
+from src.helper.generator import make_engine
+from sqlalchemy import Table
+
+Base = declarative_base()
+session, engine = make_engine()
 
 
 class Profile(Model):
@@ -91,3 +97,11 @@ class Rekap(Model):
     @classmethod
     def table_name(cls):
         return 'rekap_pendidikan'
+
+
+class RekapPostgre(Base):
+    __table__ = Table('rekap_pendidikan', Base.metadata, autoload_with=engine)
+
+
+class ProfilePostgre(Base):
+    __table__ = Table('profil_pendidikan', Base.metadata, autoload_with=engine)
