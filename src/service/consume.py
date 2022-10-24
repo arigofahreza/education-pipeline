@@ -1,12 +1,13 @@
 import hashlib
 import re
+import sys
 import time
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import insert
 from infi.clickhouse_orm import Database
 from kafka import KafkaConsumer, TopicPartition
 import json
-
+import os
 from src.config.clickhouse import CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USERNAME, \
     CLICKHOUSE_PASSWORD
 from src.model.table import Profile, Rekap, ProfilePostgre, session, RekapPostgre
@@ -46,7 +47,6 @@ def consume():
                     clean_rekap = rekap(rekapitulasi)
                     clean_rekap['sekolah_id'] = data.get('sekolah_id')
                     clean_rekap['nama'] = data.get('nama')
-                    clean_rekap['idx'] = 1
                     data_rekap = Rekap(**clean_rekap)
                     rekaps.append(data_rekap)
                     if len(rekaps) == 100:
@@ -77,13 +77,12 @@ def postgre(partition: int):
                            "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
         auto_offset_reset='earliest',
         enable_auto_commit=True,
-        group_id='pendidikan-parser-0.0.3',
+        group_id='pendidikan-parser-0.0.4',
         value_deserializer=lambda x: json.loads(x.decode('utf-8')))
     consumer.assign([TopicPartition('sc-raw-politic-geostrategic-general-001', partition)])
     for data in consumer:
         raw_data = data.value
         profile = parser(raw_data)
-        del profile['idx']
         query = insert(ProfilePostgre).values([profile])
         do_nothing = query.on_conflict_do_nothing(index_elements=["id"])
         session.execute(do_nothing)
@@ -129,40 +128,40 @@ def parser(raw: dict) -> dict:
                     identitas = profile.get('Identitas Sekolah')
                     if identitas.get('NPSN'):
                         clean_profile['npsn'] = identitas.get('NPSN')
-                    if identitas.get('Status_Kepemilikan'):
-                        clean_profile['status_kepemilikan'] = identitas.get('Status_Kepemilikan')
-                    if identitas.get('SK_Pendirian_Sekolah'):
-                        clean_profile['sk_pendirian_sekolah'] = identitas.get('SK_Pendirian_Sekolah')
-                    if identitas.get('Tanggal_SK_Izin_Operasional'):
-                        clean_profile['tgl_sk_izin_operasional'] = identitas.get('Tanggal_SK_Izin_Operasional')
-                    if identitas.get('SK_Izin_Operasional'):
-                        clean_profile['sk_izin_operasional'] = identitas.get('SK_Izin_Operasional')
-                    if identitas.get('Tanggal_SK_Pendirian'):
-                        clean_profile['tgl_sk_sekolah'] = identitas.get('Tanggal_SK_Pendirian')
+                    if identitas.get('Status'):
+                        clean_profile['status'] = identitas.get('Status')
+                    if identitas.get('SK Pendirian Sekolah'):
+                        clean_profile['sk_pendirian_sekolah'] = identitas.get('SK Pendirian Sekolah')
+                    if identitas.get('Tanggal SK Izin Operasional'):
+                        clean_profile['tgl_sk_izin_operasional'] = identitas.get('Tanggal SK Izin Operasional')
+                    if identitas.get('SK Izin Operasional'):
+                        clean_profile['sk_izin_operasional'] = identitas.get('SK Izin Operasional')
+                    if identitas.get('Tanggal SK Pendirian'):
+                        clean_profile['tgl_sk_sekolah'] = identitas.get('Tanggal SK Pendirian')
                 if profile.get('Data Pelengkap'):
                     pelengkap = profile.get('Data Pelengkap')
-                    if pelengkap.get('Kebutuhan_Khusus_Dilayani'):
-                        clean_profile['kebutuhan_khusus_dilayani'] = pelengkap.get('Kebutuhan_Khusus_Dilayani')
-                    if pelengkap.get('Nama_Bank'):
-                        clean_profile['nama_bank'] = pelengkap.get('Nama_Bank')
+                    if pelengkap.get('Kebutuhan Khusus Dilayani'):
+                        clean_profile['kebutuhan_khusus_dilayani'] = pelengkap.get('Kebutuhan Khusus Dilayani')
+                    if pelengkap.get('Nama Bank'):
+                        clean_profile['nama_bank'] = pelengkap.get('Nama Bank').strip('...')
                     if pelengkap.get('Cabang KCP/Unit'):
-                        clean_profile['cabang_bank'] = pelengkap.get('Cabang KCP/Unit')
+                        clean_profile['cabang_bank'] = pelengkap.get('Cabang KCP/Unit').strip('...')
                     if pelengkap.get('Rekening Atas Nama'):
-                        clean_profile['rekening_a_n'] = pelengkap.get('Rekening Atas Nama')
+                        clean_profile['rekening_a_n'] = pelengkap.get('Rekening Atas Nama').strip('...')
                 if profile.get('Data Rinci'):
                     rinci = profile.get('Data Rinci')
-                    if rinci.get('Status_BOS'):
-                        clean_profile['status_bos'] = rinci.get('Status_BOS')
-                    if rinci.get('Waktu_Penyelenggaraan'):
-                        clean_profile['waktu_penyelenggaraan'] = rinci.get('Waktu_Penyelenggaraan')
-                    if rinci.get('Sertifikasi_ISO'):
-                        clean_profile['sertifikasi_iso'] = rinci.get('Sertifikasi_ISO')
-                    if rinci.get('Sumber_Listrik'):
-                        clean_profile['sumber_listrik'] = rinci.get('Sumber_Listrik')
-                    if rinci.get('Daya_Listrik'):
-                        clean_profile['daya_listrik'] = rinci.get('Daya_Listrik')
-                    if rinci.get('Akses_Internet'):
-                        clean_profile['akses_internet'] = rinci.get('akses_internet')
+                    if rinci.get('Status BOS'):
+                        clean_profile['status_bos'] = rinci.get('Status BOS')
+                    if rinci.get('Waku Penyelenggaraan'):
+                        clean_profile['waktu_penyelenggaraan'] = rinci.get('Waku Penyelenggaraan')
+                    if rinci.get('Sertifikasi ISO'):
+                        clean_profile['sertifikasi_iso'] = rinci.get('Sertifikasi ISO')
+                    if rinci.get('Sumber Listrik'):
+                        clean_profile['sumber_listrik'] = rinci.get('Sumber Listrik')
+                    if rinci.get('Daya Listrik'):
+                        clean_profile['daya_listrik'] = rinci.get('Daya Listrik')
+                    if rinci.get('Akses Internet'):
+                        clean_profile['akses_internet'] = rinci.get('Akses Internet')
 
         if data.get('Kontak'):
             for kontak in data.get('Kontak'):
@@ -191,7 +190,6 @@ def parser(raw: dict) -> dict:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').replace('Prov. ', '').upper()
                         else:
                             clean_profile['provinsi'] = kontak_utama.get('Provinsi').upper()
-                        clean_profile['idx'] = 1
                     if kontak_utama.get('Kode Pos'):
                         clean_profile['kode_pos'] = kontak_utama.get('Kode Pos')
                     if kontak_utama.get('Lintang') and kontak_utama.get('Lintang') != '0':
