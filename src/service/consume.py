@@ -66,6 +66,32 @@ def consume():
         profiles.clear()
 
 
+def sample():
+    with open('C:\\Users\\LaptopBaru_2206\\PycharmProjects\\gas-pendidikan\\KB BUNDA MULIA.json') as file:
+        raw_data = json.load(file)
+        profile = parser(raw_data)
+        del profile['idx']
+        # query = insert(ProfilePostgre).values([profile])
+        # do_nothing = query.on_conflict_do_nothing(index_elements=["id"])
+        # session.execute(do_nothing)
+        # session.commit()
+        print(json.dumps(raw_data))
+        print(f'inserted {profile["id"]}')
+        if raw_data.get('data'):
+            data = raw_data.get('data')
+            if data.get('Rekapitulasi'):
+                for rekapitulasi in data.get('Rekapitulasi'):
+                    clean_rekap = rekap(rekapitulasi)
+                    clean_rekap['sekolah_id'] = data.get('sekolah_id')
+                    clean_rekap['nama'] = data.get('nama')
+                    # query = insert(RekapPostgre).values([clean_rekap])
+                    # do_nothing = query.on_conflict_do_nothing(index_elements=["id"])
+                    # session.execute(do_nothing)
+                    # session.commit()
+                    print(json.dumps(clean_rekap))
+                    print(f'inserted {clean_rekap["id"]}')
+
+
 def postgre(partition: int):
     db = Database(CLICKHOUSE_DB, db_url=f'http://{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}', username=CLICKHOUSE_USERNAME,
                   password=CLICKHOUSE_PASSWORD)
@@ -82,6 +108,7 @@ def postgre(partition: int):
     consumer.assign([TopicPartition('sc-raw-politic-geostrategic-general-001', partition)])
     for data in consumer:
         raw_data = data.value
+
         profile = parser(raw_data)
         del profile['idx']
         query = insert(ProfilePostgre).values([profile])
@@ -250,13 +277,13 @@ def rekap(raw: dict) -> dict:
     if raw.get('Data PTK dan PD'):
         ptk_pd = raw.get('Data PTK dan PD')
         if ptk_pd.get('Laki-laki'):
-            for key, value in ptk_pd.items():
-                for child_key, child_value in value.items():
-                    clean_rekap[f'{child_key.lower()}_laki_laki'] = child_value
+            lk = ptk_pd.get('Laki-laki')
+            for key, value in lk.items():
+                clean_rekap[f'{key.lower()}_laki_laki'] = value
         if ptk_pd.get('Perempuan'):
-            for key, value in ptk_pd.items():
-                for child_key, child_value in value.items():
-                    clean_rekap[f'{child_key.lower()}_perempuan'] = child_value
+            pr = ptk_pd.get('Perempuan')
+            for key, value in pr.items():
+                clean_rekap[f'{key.lower()}_perempuan'] = value
     if raw.get('Data Sarpras'):
         sarpras = raw.get('Data Sarpras')
         if raw.get('semester_id')[-1] == '1':
