@@ -100,8 +100,8 @@ class Rekap(Model):
 
 
 class RekapPostgre(Base):
-    __table__ = Table('rekap_pendidikan', Base.metadata, autoload_with=engine)
+    __table__ = Table('rekap_pendidikan_temp', Base.metadata, autoload_with=engine)
 
 
 class ProfilePostgre(Base):
-    __table__ = Table('profil_pendidikan', Base.metadata, autoload_with=engine)
+    __table__ = Table('profil_pendidikan_temp', Base.metadata, autoload_with=engine)
