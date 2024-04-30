@@ -22,9 +22,7 @@ def consume():
     profiles = []
     consumer = KafkaConsumer(
         'sc-raw-politic-geostrategic-general-001',
-        bootstrap_servers=["kafka01.production02.bt:9092", "kafka02.production02.bt:9092",
-                           "kafka03.production02.bt:9092", "kafka04.production02.bt:9092",
-                           "kafka05.production02.bt:9092", "kafka06.production02.bt:9092"],
+        bootstrap_servers=["localhost:9092"],
         auto_offset_reset='earliest',
         enable_auto_commit=True,
         group_id='pendidikan-parser-0.0.2',
